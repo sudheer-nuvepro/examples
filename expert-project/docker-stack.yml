@@ -1,0 +1,51 @@
+version: '3.9'
+
+services:
+  todo-application:
+    image: todo-application-image:latest
+    ports:
+      - "8082:8081"  # Swarm routing mesh: published port 8082 on any node routes to container port 8081
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-db:3306/tododb
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: Root@123
+      SERVER_ADDRESS: 0.0.0.0   # ensures Spring Boot listens on all interfaces
+    networks:
+      - todo-network
+    deploy:
+      replicas: 3
+      restart_policy:
+        condition: on-failure
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  mysql-db:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: Root@123
+      MYSQL_DATABASE: tododb
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - todo-network
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "--password=Root@123"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  mysql-data:
+
+networks:
+  todo-network:
+    driver: overlay
