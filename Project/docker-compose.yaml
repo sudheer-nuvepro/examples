@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  contact-manager:
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile
+    image: contact-manager:latest
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-db:3306/contactdb
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: Root@123
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+    networks:
+      - contact-network
+
+  mysql-db:
+    image: mysql:8.0
+    container_name: mysql-db
+    environment:
+      MYSQL_ROOT_PASSWORD: Root@123
+      MYSQL_DATABASE: contactdb
+    ports:
+      - "3307:3306"  # Avoid conflict with host MySQL
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - contact-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "--password=Root@123"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  frontend:
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile
+    image: contact-frontend:latest
+    ports:
+      - "3000:80"  # Host 3000 → Container Nginx 80
+    depends_on:
+      - contact-manager
+    networks:
+      - contact-network
+
+volumes:
+  mysql-data:
+    driver: local
+
+networks:
+  contact-network:
+    driver: bridge
